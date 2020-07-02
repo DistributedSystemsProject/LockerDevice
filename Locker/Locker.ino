@@ -97,18 +97,7 @@ void setup() {
  *  MAIN
  */
 void loop() {
-  while(stateBT()) {
-    while(btSerial.available()) {
-      delay(10);
-      char c = btSerial.read();
-      command += c;
-    }
-    command.trim();
-    if(command.length() > 0) execute(command); 
-    
-    delay(100);
-    countdown -= 1;
-  }
+  while(stateBT()) readBT();
 }
 
 

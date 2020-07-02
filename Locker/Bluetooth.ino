@@ -17,7 +17,7 @@ boolean stateBT() {
  *  CONNECTION TO CLIENT
  */
 void connectBT() {
-  Serial.println("----- CONNECTED -----");
+  Serial.println("------ CONNECTED -------");
   connected = true;
   countdown = 600;
 }
@@ -40,3 +40,24 @@ void disconnectBT() {
   }
   countdown = 0;
 }
+
+
+/*
+ *  READ FROM BLUETOOTH
+ */
+void readBT() {
+  if(btSerial.available()) {
+    while(btSerial.available()) {
+      delay(10);
+      char c = btSerial.read();
+      command += c;
+    }
+  
+    command.trim();
+    if(command.length() > 0) execute(command); 
+  } 
+  
+  delay(100);
+  countdown -= 1;
+}
+
