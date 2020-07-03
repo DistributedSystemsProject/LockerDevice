@@ -1,15 +1,15 @@
 /*
  *  MESSAGE ENCODING (to BASE64)
  */
-char * encodeMsg(char *decString, int msgLength) {
+char * encodeMsg(char *decString, int msgSize) {
   Serial.print("Input string is: ");
   Serial.println(decString);
   Serial.print("Size is: ");
-  Serial.println(msgLength);
+  Serial.println(msgSize);
 
-  int encodedLength = Base64.encodedLength(msgLength);
+  int encodedLength = Base64.encodedLength(msgSize);
   char * encString = new char[encodedLength+1];
-  Base64.encode(encString, decString, msgLength);
+  Base64.encode(encString, decString, msgSize);
   
   Serial.print("Encoded string is: ");
   Serial.println(encString);
@@ -21,13 +21,13 @@ char * encodeMsg(char *decString, int msgLength) {
 /*
  *  MESSAGE DECODING (from BASE64)
  */
-char * decodeMsg(char *encString, int msgLength) {
+char * decodeMsg(char *encString, int msgSize) {
   Serial.print("Input string is: ");
   Serial.println(encString);
   
-  int decodedLength = Base64.decodedLength(encString, msgLength);
+  int decodedLength = Base64.decodedLength(encString, msgSize);
   char * decString = new char[decodedLength+1];
-  Base64.decode(decString, encString, msgLength);
+  Base64.decode(decString, encString, msgSize);
  
   Serial.print("Decoded string is: ");
   Serial.println(decString);
