@@ -11,7 +11,7 @@ char * encodeMsg(char *decString, int msgSize) {
   char * encString = new char[encodedLength+1];
   Base64.encode(encString, decString, msgSize);
   
-  Serial.print("Encoded string is: ");
+  Serial.print(F("Encoded string is: "));
   Serial.println(encString);
 
   return encString;
@@ -29,9 +29,9 @@ char * decodeMsg(char *encString, int msgSize) {
   char * decString = new char[decodedLength+1];
   Base64.decode(decString, encString, msgSize);
  
-  Serial.print("Decoded string is: ");
+  Serial.print(F("Decoded string is: "));
   Serial.println(decString);
-  Serial.print("Size is: ");
+  Serial.print(F("Size is: "));
   Serial.println(decodedLength);
   
   return decString;

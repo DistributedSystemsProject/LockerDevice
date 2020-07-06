@@ -4,11 +4,9 @@
 void encrypt(char *plain, int msgSize) {
   aes128_cbc_enc(key, iv, plain, msgSize);
   
-  Serial.print("Block size: ");
+  Serial.print(F("Block size: "));
   Serial.println(msgSize);
-  btSerial.print("Encrypted: ");
-  Serial.print("Encrypted: ");
-  btSerial.println(plain);
+  Serial.print(F("Encrypted: "));
   Serial.println(plain);
 }
 
@@ -17,12 +15,18 @@ void encrypt(char *plain, int msgSize) {
  *  MESSAGE DECRYPTION (with AES-128)
  */
 void decrypt(char *cipher, int msgSize) {
+  for (int i=0; i<sizeof(iv); i++)
+    Serial.print(iv[i], HEX);
+  Serial.print(F("Input cipher: "));
+  for (int i=0; i<msgSize; i++)
+    Serial.print(cipher[i], HEX);
+  Serial.println();
   aes128_cbc_dec(key, iv, cipher, msgSize);
   cipher[msgSize] = '\0';
   
-  Serial.print("Size: ");
-  Serial.println(strlen(cipher));
-  Serial.print("Decrypted: ");
+  Serial.print(F("Size: "));
+  Serial.println(msgSize);
+  Serial.print(F("Decrypted: "));
   Serial.println(cipher);
 }
 
