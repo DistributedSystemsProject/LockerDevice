@@ -21,7 +21,7 @@ boolean led = false;
 uint8_t key[] = {0x35, 0x74, 0xdf, 0x05, 0xd2, 0xbb, 0x88, 0x19, 0xdc, 0x25, 0xb8, 0x35, 0xd7, 0x24, 0xa3, 0x1f};
 uint8_t iv[] = {'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l'};
 char in[] = "bGxsbGxsbGxsbGxsbGxsbCJPYCq2XTK/74wJlqWMQSpHrXpMoqThCN4eeA6ez6rOkL3iO+bqzyddglj92kuxqz09IbSrQQGJJ5Es1NThGek=";
-String output = "{nonce: 2222222}";
+String output = "{\"nonce\": 54252543262462462624452}";
 String command;
 
 
@@ -39,7 +39,6 @@ void setup() {
   btSerial.begin(9600);
 
   Serial.println("STARTING");
-  
 }
 
 
@@ -47,27 +46,17 @@ void setup() {
  *  MAIN
  */
 void loop() {
-  while (stateBT()) readBT();
+  while(stateBT()) readBT();
 
   // PACKET TO CLIENT
-  /*toClient(output);
-  char ehi[boh.length()+1];
-  boh.toCharArray(ehi, boh.length()+1);
-  ehi[boh.length()] = '\0';
-  delay(1000);*/
+  Serial.println("// To client...");
+  toClient(output);
   
   // PACKET FROM CLIENT
-  /*Serial.println("From client...");
-  String message = fromClient(in, sizeof(in)-1);
-  if (message != "error") Serial.println(message);*/
-
-  int block = cbcLength(output.length());
-  char cipher[block+1];
-  for(int i=0; i<output.length()-block; i++) output += ' ';
-  output.toCharArray(cipher, block+1);
-  cipher[block] = '\0';
-  encrypt(cipher, block);
-  decrypt(cipher, block);
+  Serial.println("// From client...");
+  fromClient((char *)command.c_str(), command.length());
+  
+  command = "";
 
   Serial.println();
   delay(500);
@@ -116,36 +105,28 @@ void execute(String message) {
 /*
  *  GET MESSAGE FROM CLIENT
  */
-String fromClient(char *input, int msgSize) {
+void fromClient(char *input, int msgSize) {
   int decSize = Base64.decodedLength(input, msgSize);
   char * decoded = decodeMsg(input, msgSize);
-  char message[decSize - 31];
+  char message[decSize-31];
   uint8_t hmac[33];
   
-  memcpy(message, decoded, decSize - 32);
-  memcpy((char *)hmac, decoded + (decSize - 32), 32);
-  message[decSize - 32] = '\0';
+  memcpy(message, decoded, decSize-32);
+  memcpy(hmac, decoded + (decSize-32), 32);
+  message[decSize-32] = '\0';
   hmac[32] = '\0';
-  Serial.print(message);
-  Serial.println();  
+  delete decoded;
 
-  if(memcmp((char *)hmac, (char *)hash(message), 32) == 0) {
-    Serial.println("Equals!");
-    int block = cbcLength(sizeof(message) - 17);
-    char cipher[block + 1];
+  if(memcmp(hmac, hash(message), 32) == 0) {
+    Serial.println(F("Equals!"));
+    int block = cbcLength(decSize-32-16);
+    char cipher[block+1];
     
-    memcpy((char *)iv, message, 16);
-    memcpy(cipher, message + 16, block);
+    memcpy(iv, message, 16);
+    memcpy(cipher, message+16, block);
     cipher[block] = '\0';
     decrypt(cipher, block);
-    
-    String output = String(cipher);
-    output.trim();
-
-    return output;
   }
-
-  return "error";
 }
 
 
@@ -154,8 +135,9 @@ String fromClient(char *input, int msgSize) {
  */
 void toClient(String message) {
   int block = cbcLength(message.length());
+  for(int i=0; i<block-message.length(); i++) message += ' ';
+  
   char cipher[block+1];
-  for(int i=0; i<message.length()-block; i++) message += ' ';
   message.toCharArray(cipher, block+1);
   cipher[block] = '\0';
   encrypt(cipher, block);
@@ -166,12 +148,12 @@ void toClient(String message) {
 
   char packet[16+block+33];
   memcpy(packet, full, 16+block);
-  memcpy(packet + (16+block), (char *)hash(full), 32);
+  memcpy(packet + (16+block), hash(full), 32);
   packet[16+block+32] = '\0';
 
   char * enc = encodeMsg(packet, sizeof(packet)-1);
-  int encodedLength = Base64.encodedLength(sizeof(packet)-1);
-  decodeMsg(enc, encodedLength);
+  command = String(enc);
+  delete enc;
 }
 
 

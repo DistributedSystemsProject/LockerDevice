@@ -17,7 +17,7 @@ boolean stateBT() {
  *  CONNECTION TO CLIENT
  */
 void connectBT() {
-  Serial.println("------ CONNECTED -------");
+  Serial.println(F("------ CONNECTED -------"));
   connected = true;
   countdown = 600;
 }
@@ -27,7 +27,7 @@ void connectBT() {
  *  DISCONNECTION FROM CLIENT
  */
 void disconnectBT() {
-  Serial.println("----- DISCONNECTED -----");
+  Serial.println(F("----- DISCONNECTED -----"));
   Serial.println();
   connected = false;
 
