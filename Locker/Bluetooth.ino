@@ -47,14 +47,16 @@ void disconnectBT() {
  */
 void readBT() {
   if(btSerial.available()) {
-    while(btSerial.available()) {
-      delay(10);
-      char c = btSerial.read();
-      command += c;
+    int s = 0;
+    while(btSerial.available() && s<255) {
+      char i = btSerial.read();
+      if(i != ' ' && i != '\n' && i != '\r' && i != '\0') {
+        //command[s] = i;
+        s++;
+      }
     }
   
-    command.trim();
-    if(command.length() > 0) execute(command); 
+    //if(s > 0) execute(command, s); 
   } 
   
   delay(100);

@@ -1,6 +1,7 @@
 #include <AESLib.h>
 #include <ArduinoJson.h>
 #include <Base64.h>
+#include <EEPROM.h>
 #include <sha256.h>
 #include <SoftwareSerial.h>
 
@@ -13,16 +14,16 @@ SoftwareSerial btSerial(BT_TX, BT_RX);    // Bluetooth serial
 boolean connected = false;                // Bluetooth state
 int countdown = 0;                        // Bluetooth time
 
-struct message {
-  char IDc[15];
-};
-
 boolean led = false;
-uint8_t key[] = {0x35, 0x74, 0xdf, 0x05, 0xd2, 0xbb, 0x88, 0x19, 0xdc, 0x25, 0xb8, 0x35, 0xd7, 0x24, 0xa3, 0x1f};
+const uint8_t key[] PROGMEM = {0x35, 0x74, 0xdf, 0x05, 0xd2, 0xbb, 0x88, 0x19, 0xdc, 0x25, 0xb8, 0x35, 0xd7, 0x24, 0xa3, 0x1f};
 uint8_t iv[] = {'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l'};
-char in[] = "bGxsbGxsbGxsbGxsbGxsbCJPYCq2XTK/74wJlqWMQSpHrXpMoqThCN4eeA6ez6rOkL3iO+bqzyddglj92kuxqz09IbSrQQGJJ5Es1NThGek=";
-String output = "{\"nonce\": 54252543262462462624452}";
-String command;
+
+typedef struct message {
+  const char *IDc;
+  const char *OP;
+  const char *N1;
+  const char *N3;
+};
 
 
 /*
@@ -46,75 +47,33 @@ void setup() {
  *  MAIN
  */
 void loop() {
+  Serial.println();
   while(stateBT()) readBT();
 
   // PACKET TO CLIENT
-  Serial.println("// To client...");
-  toClient(output);
-  
-  // PACKET FROM CLIENT
-  Serial.println("// From client...");
-  fromClient((char *)command.c_str(), command.length());
-  
-  command = "";
-
-  Serial.println();
+  toClient("{\"IDc\":\"123456789012345\",\"OP\":\"unlock\",\"N1\":\"123456789012345\",\"N3\":\"3456789012462462462452456234567\"}");
   delay(500);
-}
-
-
-/*
- *  CHOOSE OPERATION TO DO
- */
-void execute(String message) {
-  if (message == "T") {
-    if (led) digitalWrite(LED_BUILTIN, LOW);
-    else digitalWrite(LED_BUILTIN, HIGH);
-    led = !led;
-  }
-  else {
-    int msgLength = message.length();
-    int block = cbcLength(msgLength);
-    for (int i = 0; i < msgLength - block; i++) message += ' ';
-    char data[block + 1];
-    message.toCharArray(data, block + 1);
-    data[block] = '\0';
-
-    if (strlen(data) > 0) {
-      Serial.print("Message: ");
-      Serial.println(message);
-      Serial.print("Size: ");
-      Serial.println(msgLength);
-      delay(200);
-
-      encrypt(data, block);
-      char * encoded = encodeMsg(data, block);
-      int encodedLength = Base64.encodedLength(block);
-      char * decoded = decodeMsg(encoded, encodedLength);
-      decrypt(decoded, block);
-      randomIV();
-      Serial.println();
-    }
-  }
-
-  command = "";
-  countdown = 600;
+  // PACKET FROM CLIENT
+  fromJson((char *)(fromClient((char *)"bGxsbGxsbGxsbGxsbGxsbFp1bKjJC1g4XZ/nc8yi5+V9KvjvPQrMyQAHm8vQV+csZ9JT/pmAmd1ODQ5/KCn3LSrQviB7dEkKuulxAeeG7CNuE+6I8XavUmedQ8AtdbUxizv/qiI7hFaw7wLkfZRRoQS5T/bi4bLBAXSHZosbIjjWCbw3JhJF3kxlYtzWMySruSmKqdOgvOKjnkYCAETyBg==", 216)).c_str());
+  
+  delay(500);
 }
 
 
 /*
  *  GET MESSAGE FROM CLIENT
  */
-void fromClient(char *input, int msgSize) {
+String fromClient(char * input, int msgSize) {
+  Serial.println("// From");
+  
   int decSize = Base64.decodedLength(input, msgSize);
   char * decoded = decodeMsg(input, msgSize);
   char message[decSize-31];
-  uint8_t hmac[33];
+  uint8_t hmac[32];
   
   memcpy(message, decoded, decSize-32);
   memcpy(hmac, decoded + (decSize-32), 32);
   message[decSize-32] = '\0';
-  hmac[32] = '\0';
   delete decoded;
 
   if(memcmp(hmac, hash(message), 32) == 0) {
@@ -126,7 +85,12 @@ void fromClient(char *input, int msgSize) {
     memcpy(cipher, message+16, block);
     cipher[block] = '\0';
     decrypt(cipher, block);
+    
+    String out = String(cipher);
+    return out;
   }
+
+  return "";
 }
 
 
@@ -134,6 +98,8 @@ void fromClient(char *input, int msgSize) {
  *  SEND MESSAGE TO CLIENT
  */
 void toClient(String message) {
+  Serial.println("// To");
+  
   int block = cbcLength(message.length());
   for(int i=0; i<block-message.length(); i++) message += ' ';
   
@@ -142,9 +108,9 @@ void toClient(String message) {
   cipher[block] = '\0';
   encrypt(cipher, block);
   
-  char full[17+block];
+  char full[16+block];
   for(int i=0; i<16; i++) full[i] = iv[i];
-  for(int i=16; i<17+block; i++) full[i] = cipher[i-16];
+  for(int i=16; i<16+block; i++) full[i] = cipher[i-16];
 
   char packet[16+block+33];
   memcpy(packet, full, 16+block);
@@ -152,7 +118,6 @@ void toClient(String message) {
   packet[16+block+32] = '\0';
 
   char * enc = encodeMsg(packet, sizeof(packet)-1);
-  command = String(enc);
   delete enc;
 }
 
@@ -160,20 +125,21 @@ void toClient(String message) {
 /*
  *  MESSAGE DESERIALIZATION (from JSON)
  */
-void fromJson(char encString[]) {
+void fromJson(char * json) {
   StaticJsonDocument<200> doc;
-  DeserializationError error = deserializeJson(doc, encString);
+  DeserializationError error = deserializeJson(doc, json);
 
-  if (error) {
+  if(error) {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.c_str());
     return;
   }
-
-  message msg;
-  strcpy(msg.IDc, doc["IDc"]);
-  Serial.print("Client ID is ");
-  Serial.println(msg.IDc);
+  
+  message first = { doc["IDc"], doc["OP"], doc["N1"], doc["N3"] };
+  Serial.println(first.IDc);
+  Serial.println(first.OP);
+  Serial.println(first.N1);
+  Serial.println(first.N3);
 }
 
 
