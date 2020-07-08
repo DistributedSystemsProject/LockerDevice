@@ -100,8 +100,9 @@ String fromClient(char * input, int msgSize) {
 void toClient(String message) {
   Serial.println("// To");
   
-  int block = cbcLength(message.length());
-  for(int i=0; i<block-message.length(); i++) message += ' ';
+  int msgSize = message.length();
+  int block = cbcLength(msgSize);
+  for(int i=0; i<block-msgSize; i++) message += ' ';
   
   char cipher[block+1];
   message.toCharArray(cipher, block+1);
