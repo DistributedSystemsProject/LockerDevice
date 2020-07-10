@@ -5,6 +5,7 @@
 #include <sha256.h>
 #include <SoftwareSerial.h>
 
+#define  FC(string_constant) (reinterpret_cast<const __FlashStringHelper *>(string_constant))
 #define  BT_PWR A2           // PIN bluetooth power
 #define  BT_ST A3            // PIN bluetooth state
 #define  BT_RX A4            // PIN bluetooth reception
@@ -14,16 +15,17 @@ SoftwareSerial btSerial(BT_TX, BT_RX);    // Bluetooth serial
 boolean connected = false;                // Bluetooth state
 int countdown = 0;                        // Bluetooth time
 
-boolean led = false;
-const uint8_t key[] PROGMEM = {0x35, 0x74, 0xdf, 0x05, 0xd2, 0xbb, 0x88, 0x19, 0xdc, 0x25, 0xb8, 0x35, 0xd7, 0x24, 0xa3, 0x1f};
-uint8_t iv[] = {'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l'};
+char const IDd[] PROGMEM = "1234567890device";     // Device id
+char N[] = "noncenoncenonce1";                     // Last sent nonce
+uint8_t key[] = {0x0c, 0xc0, 0x52, 0xf6, 0x7b, 0xbd, 0x05, 0x0e, 0x75, 0xac, 0x0d, 0x43, 0xf1, 0x0a, 0x8f, 0x35};
+uint8_t iv[] = {0x2e, 0xda, 0x84, 0x0f, 0xa2, 0xc4, 0x6d, 0x02, 0xc9, 0x89, 0xc6, 0x57, 0x8f, 0x01, 0x19, 0x99};
 
-typedef struct message {
+typedef struct {
   const char *IDc;
   const char *OP;
   const char *N1;
   const char *N3;
-};
+} message;
 
 
 /*
@@ -38,6 +40,7 @@ void setup() {
 
   Serial.begin(9600);
   btSerial.begin(9600);
+  btSerial.setTimeout(200);
 
   Serial.println("STARTING");
 }
@@ -47,25 +50,16 @@ void setup() {
  *  MAIN
  */
 void loop() {
-  Serial.println();
   while(stateBT()) readBT();
-
-  // PACKET TO CLIENT
-  toClient("{\"IDc\":\"123456789012345\",\"OP\":\"unlock\",\"N1\":\"123456789012345\",\"N3\":\"3456789012462462462452456234567\"}");
-  delay(500);
-  // PACKET FROM CLIENT
-  fromJson((char *)(fromClient((char *)"bGxsbGxsbGxsbGxsbGxsbFp1bKjJC1g4XZ/nc8yi5+V9KvjvPQrMyQAHm8vQV+csZ9JT/pmAmd1ODQ5/KCn3LSrQviB7dEkKuulxAeeG7CNuE+6I8XavUmedQ8AtdbUxizv/qiI7hFaw7wLkfZRRoQS5T/bi4bLBAXSHZosbIjjWCbw3JhJF3kxlYtzWMySruSmKqdOgvOKjnkYCAETyBg==", 216)).c_str());
   
-  delay(500);
+  delay(100);
 }
 
 
 /*
  *  GET MESSAGE FROM CLIENT
  */
-String fromClient(char * input, int msgSize) {
-  Serial.println("// From");
-  
+int fromClient(char * input, int msgSize) {
   int decSize = Base64.decodedLength(input, msgSize);
   char * decoded = decodeMsg(input, msgSize);
   char message[decSize-31];
@@ -76,8 +70,7 @@ String fromClient(char * input, int msgSize) {
   message[decSize-32] = '\0';
   delete decoded;
 
-  if(memcmp(hmac, hash(message), 32) == 0) {
-    Serial.println(F("Equals!"));
+  if(memcmp(hmac, hash(message, (decSize-32)), 32) == 0) {
     int block = cbcLength(decSize-32-16);
     char cipher[block+1];
     
@@ -86,11 +79,11 @@ String fromClient(char * input, int msgSize) {
     cipher[block] = '\0';
     decrypt(cipher, block);
     
-    String out = String(cipher);
-    return out;
+    memcpy(input, cipher, block+1);
+    return block;
   }
 
-  return "";
+  return 0;
 }
 
 
@@ -98,49 +91,71 @@ String fromClient(char * input, int msgSize) {
  *  SEND MESSAGE TO CLIENT
  */
 void toClient(String message) {
-  Serial.println("// To");
-  
   int msgSize = message.length();
   int block = cbcLength(msgSize);
   for(int i=0; i<block-msgSize; i++) message += ' ';
+  
+  char full[16+block];
+  for(int i=0; i<16; i++) full[i] = iv[i];
   
   char cipher[block+1];
   message.toCharArray(cipher, block+1);
   cipher[block] = '\0';
   encrypt(cipher, block);
-  
-  char full[16+block];
-  for(int i=0; i<16; i++) full[i] = iv[i];
   for(int i=16; i<16+block; i++) full[i] = cipher[i-16];
 
   char packet[16+block+33];
   memcpy(packet, full, 16+block);
-  memcpy(packet + (16+block), hash(full), 32);
+  memcpy(packet + (16+block), hash(full, (16+block)), 32);
   packet[16+block+32] = '\0';
-
+  
   char * enc = encodeMsg(packet, sizeof(packet)-1);
+  btSerial.println(enc);
   delete enc;
 }
 
 
 /*
- *  MESSAGE DESERIALIZATION (from JSON)
+ *  SEND REQUEST MESSAGE
  */
-void fromJson(char * json) {
-  StaticJsonDocument<200> doc;
-  DeserializationError error = deserializeJson(doc, json);
+void reqAccess() {
+  String message;
+  StaticJsonDocument<60> doc;
+  doc["IDd"] = FC(IDd);
+  doc["N1"] = N;
+  serializeJson(doc, message);
 
-  if(error) {
-    Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.c_str());
-    return;
-  }
+  btSerial.println(FC(IDd));
+  toClient(message);
+}
+
+
+/*
+ *  CHECK OTP ACCESS KEY
+ */
+boolean checkAccess(char * otp, int msgSize) {
+  StaticJsonDocument<120> doc;
+  DeserializationError error = deserializeJson(doc, otp);
+  const char * ctr = doc["N1"];
   
-  message first = { doc["IDc"], doc["OP"], doc["N1"], doc["N3"] };
-  Serial.println(first.IDc);
-  Serial.println(first.OP);
-  Serial.println(first.N1);
-  Serial.println(first.N3);
+  if(error || memcmp(ctr, N, 16) != 0) return false;
+  
+  ctr = doc["N2"];
+  memcpy(N, ctr, 16);
+  ctr = doc["OP"];
+  Serial.println(ctr);
+
+  return true;
+}
+
+
+/*
+ *  GENERATE NEW NONCE
+ */
+void newNonce() {
+  for(int i=0; i<16; i++) {
+    N[i] = random(256);
+  }
 }
 
 
