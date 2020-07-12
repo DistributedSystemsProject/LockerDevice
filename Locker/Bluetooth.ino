@@ -50,7 +50,10 @@ void readBT() {
     int s = strlen(input);
     
     if(s>15 && s<237) {
-      int block = fromClient(input, s);      
+      Serial.println(input);
+      int block = fromClient(input, s);
+      Serial.println(s);
+      
       if(block > 0) checkAccess(input, block);
     }
   }

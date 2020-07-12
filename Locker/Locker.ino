@@ -16,7 +16,7 @@ boolean connected = false;                // Bluetooth state
 int countdown = 0;                        // Bluetooth time
 
 char const IDd[] PROGMEM = "1234567890device";     // Device id
-char N[16];                     // Last sent nonce
+char N[17];                                        // Last sent nonce
 uint8_t key[] = {0x0c, 0xc0, 0x52, 0xf6, 0x7b, 0xbd, 0x05, 0x0e, 0x75, 0xac, 0x0d, 0x43, 0xf1, 0x0a, 0x8f, 0x35};
 uint8_t iv[16];
 
@@ -123,9 +123,8 @@ void reqAccess() {
   newNonce();
   StaticJsonDocument<60> doc;
   doc["IDd"] = FC(IDd);
-  doc["N1"] = String(N);
+  doc["N1"] = N;
   serializeJson(doc, message);
-  serializeJson(doc, Serial);
 
   btSerial.println(FC(IDd));
   toClient(message);
@@ -136,6 +135,7 @@ void reqAccess() {
  *  CHECK OTP ACCESS KEY
  */
 boolean checkAccess(char * otp, int msgSize) {
+  Serial.println("OK");
   StaticJsonDocument<120> doc;
   DeserializationError error = deserializeJson(doc, otp);
   const char * ctr = doc["N1"];
@@ -155,9 +155,7 @@ boolean checkAccess(char * otp, int msgSize) {
  *  GENERATE NEW NONCE
  */
 void newNonce() {
-  for(int i=0; i<16; i++) {
-    N[i] = random(256);
-  }
+    for(int i = 0; i<8; i++) snprintf(N+(i*2), 3, "%02x", random(256));
 }
 
 
