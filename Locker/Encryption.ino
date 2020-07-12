@@ -2,8 +2,8 @@
  *  MESSAGE ENCRYPTION (with AES-128)
  */
 void encrypt(char * plain, int msgSize) {
-  aes128_cbc_enc(key, iv, plain, msgSize);
   randomIV();
+  aes128_cbc_enc(key, iv, plain, msgSize);
 }
 
 

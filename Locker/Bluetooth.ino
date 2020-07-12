@@ -20,6 +20,7 @@ void connectBT() {
   reqAccess();
   connected = true;
   resetCount();
+  Serial.println("Paring...");
 }
 
 
@@ -45,22 +46,11 @@ void disconnectBT() {
 void readBT() {
   if(btSerial.available()) {
     char input[237];
-    int s = 0;
+    (btSerial.readStringUntil('\n')).toCharArray(input, 237);
+    int s = strlen(input);
     
-    while(btSerial.available() && s<255) {
-      char c = btSerial.read();
-      if(c != ' ' && c != '\n' && c != '\r' && c != '\0') {
-        input[s] = c;
-        s++;
-      }
-    }
-    
-    if(s > 15 && s < 237) {
-      s = 172;
-      memcpy(input, "AWnMlXdVlVGi26w5TPD2BquppMIdRQkbJjVv+aa5t/xadEHxeiDaMRO6p0tXcoEeAly87TYEnAp8t55IhHlmz4+HOLN9HhqQ71ARZ2x6XG92Wd8NY6oP5qC9J/s+E5qAWjcXMgOF1GxF3ID++KtqzYpBIR2ZRNwRh5ELk86oRy4=", 172);
-      input[s] = '\0';
-      int block = fromClient(input, s);
-      
+    if(s>15 && s<237) {
+      int block = fromClient(input, s);      
       if(block > 0) checkAccess(input, block);
     }
   }

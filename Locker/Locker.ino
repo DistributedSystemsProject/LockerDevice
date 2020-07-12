@@ -16,9 +16,9 @@ boolean connected = false;                // Bluetooth state
 int countdown = 0;                        // Bluetooth time
 
 char const IDd[] PROGMEM = "1234567890device";     // Device id
-char N[] = "noncenoncenonce1";                     // Last sent nonce
+char N[16];                     // Last sent nonce
 uint8_t key[] = {0x0c, 0xc0, 0x52, 0xf6, 0x7b, 0xbd, 0x05, 0x0e, 0x75, 0xac, 0x0d, 0x43, 0xf1, 0x0a, 0x8f, 0x35};
-uint8_t iv[] = {0x2e, 0xda, 0x84, 0x0f, 0xa2, 0xc4, 0x6d, 0x02, 0xc9, 0x89, 0xc6, 0x57, 0x8f, 0x01, 0x19, 0x99};
+uint8_t iv[16];
 
 typedef struct {
   const char *IDc;
@@ -95,13 +95,13 @@ void toClient(String message) {
   int block = cbcLength(msgSize);
   for(int i=0; i<block-msgSize; i++) message += ' ';
   
-  char full[16+block];
-  for(int i=0; i<16; i++) full[i] = iv[i];
-  
   char cipher[block+1];
+  char full[16+block];
+  
   message.toCharArray(cipher, block+1);
   cipher[block] = '\0';
   encrypt(cipher, block);
+  for(int i=0; i<16; i++) full[i] = iv[i];
   for(int i=16; i<16+block; i++) full[i] = cipher[i-16];
 
   char packet[16+block+33];
@@ -120,10 +120,12 @@ void toClient(String message) {
  */
 void reqAccess() {
   String message;
+  newNonce();
   StaticJsonDocument<60> doc;
   doc["IDd"] = FC(IDd);
-  doc["N1"] = N;
+  doc["N1"] = String(N);
   serializeJson(doc, message);
+  serializeJson(doc, Serial);
 
   btSerial.println(FC(IDd));
   toClient(message);
