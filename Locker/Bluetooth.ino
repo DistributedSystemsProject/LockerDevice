@@ -17,9 +17,10 @@ boolean stateBT() {
  *  CONNECTION TO CLIENT
  */
 void connectBT() {
+  btSerial.println(FC(IDd));
   reqAccess();
-  connected = true;
   resetCount();
+  connected = true;
   Serial.println("Paring...");
 }
 
@@ -33,8 +34,8 @@ void disconnectBT() {
     delay(2000);
     digitalWrite(BT_PWR, HIGH);
     delay(2000);
-    btSerial.flush();
   }
+  btSerial.flush();
   connected = false;
   countdown = 0;
 }
@@ -50,11 +51,15 @@ void readBT() {
     int s = strlen(input);
     
     if(s>15 && s<237) {
+      delay(100);
       Serial.println(input);
-      int block = fromClient(input, s);
       Serial.println(s);
+      int block = fromClient(input, s);
       
-      if(block > 0) checkAccess(input, block);
+      if(block > 0) {
+        if(!checkAccess(input, block)) reqAccess();
+        else resAccess();
+      }
     }
   }
   

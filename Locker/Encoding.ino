@@ -17,6 +17,6 @@ char * decodeMsg(char * encString, int msgSize) {
   int decodedLength = Base64.decodedLength(encString, msgSize);
   char * decString = new char[decodedLength+1];
   Base64.decode(decString, encString, msgSize);
-  
+    
   return decString;
 }

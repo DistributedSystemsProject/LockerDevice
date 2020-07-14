@@ -39,8 +39,7 @@ void setup() {
   randomSeed(analogRead(0));
 
   Serial.begin(9600);
-  btSerial.begin(9600);
-  btSerial.setTimeout(200);
+  btSerial.begin(4800);
 
   Serial.println("STARTING");
 }
@@ -69,6 +68,7 @@ int fromClient(char * input, int msgSize) {
   memcpy(hmac, decoded + (decSize-32), 32);
   message[decSize-32] = '\0';
   delete decoded;
+  //printHash(hmac);
 
   if(memcmp(hmac, hash(message, (decSize-32)), 32) == 0) {
     int block = cbcLength(decSize-32-16);
@@ -126,13 +126,12 @@ void reqAccess() {
   doc["N1"] = N;
   serializeJson(doc, message);
 
-  btSerial.println(FC(IDd));
   toClient(message);
 }
 
 
 /*
- *  CHECK OTP ACCESS KEY
+ *  CHECK OP ACCESS KEY
  */
 boolean checkAccess(char * otp, int msgSize) {
   Serial.println("OK");
@@ -152,10 +151,42 @@ boolean checkAccess(char * otp, int msgSize) {
 
 
 /*
- *  GENERATE NEW NONCE
+ *  ANSWER TO OP REQUEST
+ */
+void resAccess() {
+  Serial.println("RES");
+  String message;
+  StaticJsonDocument<100> doc;
+  doc["RES"] = true;
+  doc["N2"] = N;
+  newNonce();
+  doc["N3"] = N;
+  serializeJson(doc, message);
+
+  toClient(message);
+}
+
+
+/*
+ *  DO THE OPERATION
+ */
+boolean doAccess(char * conf, int msgSize) {
+  Serial.println("OP");
+  StaticJsonDocument<40> doc;
+  DeserializationError error = deserializeJson(doc, conf);
+  const char * ctr = doc["N3"];
+  
+  if(error || memcmp(ctr, N, 16) != 0) return false;
+  Serial.println("DONE!");
+  return true;
+}
+
+
+/*
+ *  RANDOM NONCE GENERATION
  */
 void newNonce() {
-    for(int i = 0; i<8; i++) snprintf(N+(i*2), 3, "%02x", random(256));
+  for(int i = 0; i<8; i++) snprintf(N+(i*2), 3, "%02x", random(256));
 }
 
 
