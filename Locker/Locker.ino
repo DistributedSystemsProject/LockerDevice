@@ -14,18 +14,12 @@
 SoftwareSerial btSerial(BT_TX, BT_RX);    // Bluetooth serial
 boolean connected = false;                // Bluetooth state
 int countdown = 0;                        // Bluetooth time
+int operation = 0;                        // Operation to do
 
 char const IDd[] PROGMEM = "1234567890device";     // Device id
 char N[17];                                        // Last sent nonce
 uint8_t key[] = {0x0c, 0xc0, 0x52, 0xf6, 0x7b, 0xbd, 0x05, 0x0e, 0x75, 0xac, 0x0d, 0x43, 0xf1, 0x0a, 0x8f, 0x35};
 uint8_t iv[16];
-
-typedef struct {
-  const char *IDc;
-  const char *OP;
-  const char *N1;
-  const char *N3;
-} message;
 
 
 /*
@@ -49,7 +43,14 @@ void setup() {
  *  MAIN
  */
 void loop() {
-  while(stateBT()) readBT();
+  while(stateBT()) {
+    if(btSerial.available()) {
+      if(!readBT()) reqOp();
+      else if(operation != 0) resOp();
+    }
+
+    waitCount();
+  }
   
   delay(100);
 }
@@ -68,7 +69,6 @@ int fromClient(char * input, int msgSize) {
   memcpy(hmac, decoded + (decSize-32), 32);
   message[decSize-32] = '\0';
   delete decoded;
-  //printHash(hmac);
 
   if(memcmp(hmac, hash(message, (decSize-32)), 32) == 0) {
     int block = cbcLength(decSize-32-16);
@@ -118,7 +118,7 @@ void toClient(String message) {
 /*
  *  SEND REQUEST MESSAGE
  */
-void reqAccess() {
+void reqOp() {
   String message;
   newNonce();
   StaticJsonDocument<60> doc;
@@ -133,7 +133,7 @@ void reqAccess() {
 /*
  *  CHECK OP ACCESS KEY
  */
-boolean checkAccess(char * otp, int msgSize) {
+boolean checkOp(char * otp, int msgSize) {
   Serial.println("OK");
   StaticJsonDocument<120> doc;
   DeserializationError error = deserializeJson(doc, otp);
@@ -145,6 +145,7 @@ boolean checkAccess(char * otp, int msgSize) {
   memcpy(N, ctr, 16);
   ctr = doc["OP"];
   Serial.println(ctr);
+  operation = 1;
 
   return true;
 }
@@ -153,7 +154,7 @@ boolean checkAccess(char * otp, int msgSize) {
 /*
  *  ANSWER TO OP REQUEST
  */
-void resAccess() {
+void resOp() {
   Serial.println("RES");
   String message;
   StaticJsonDocument<100> doc;
@@ -170,14 +171,17 @@ void resAccess() {
 /*
  *  DO THE OPERATION
  */
-boolean doAccess(char * conf, int msgSize) {
+boolean doOp(char * conf, int msgSize) {
   Serial.println("OP");
   StaticJsonDocument<40> doc;
   DeserializationError error = deserializeJson(doc, conf);
   const char * ctr = doc["N3"];
   
   if(error || memcmp(ctr, N, 16) != 0) return false;
+
+  operation = 0;
   Serial.println("DONE!");
+  
   return true;
 }
 

@@ -18,7 +18,7 @@ boolean stateBT() {
  */
 void connectBT() {
   btSerial.println(FC(IDd));
-  reqAccess();
+  reqOp();
   resetCount();
   connected = true;
   Serial.println("Paring...");
@@ -37,33 +37,33 @@ void disconnectBT() {
   }
   btSerial.flush();
   connected = false;
-  countdown = 0;
+  operation = 0;
 }
 
 
 /*
  *  READ FROM BLUETOOTH
+ *  true = successfull read
+ *  false = parse or message error
  */
-void readBT() {
-  if(btSerial.available()) {
-    char input[237];
-    (btSerial.readStringUntil('\n')).toCharArray(input, 237);
-    int s = strlen(input);
+boolean readBT() {
+  char input[237];
+  (btSerial.readStringUntil('\n')).toCharArray(input, 237);
+  int s = strlen(input);
+  
+  if(s>15 && s<237) {
+    delay(100);
+    Serial.println(input);
+    Serial.println(s);
+    int block = fromClient(input, s);
     
-    if(s>15 && s<237) {
-      delay(100);
-      Serial.println(input);
-      Serial.println(s);
-      int block = fromClient(input, s);
-      
-      if(block > 0) {
-        if(!checkAccess(input, block)) reqAccess();
-        else resAccess();
-      }
+    if(block > 0) {
+      if(operation == 0) return checkOp(input, block);
+      else return doOp(input, block);
     }
   }
   
-  waitCount();
+  return false;
 }
 
 

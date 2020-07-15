@@ -20,9 +20,7 @@ void decrypt(char * cipher, int msgSize) {
  *  RANDOM IV ARRAY GENERATION
  */
 void randomIV() {
-  for(int i=0; i<16; i++) {
-    iv[i] = random(256);
-  }
+  for(int i=0; i<16; i++) iv[i] = random(256);
 }
 
 
