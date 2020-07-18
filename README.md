@@ -1,5 +1,8 @@
 # LockerDevice
-Locker Device software made with Arduino
+Bluetooth Locker Device software made with Arduino
+
+# Usage
+All you need to know is this: download the code and run it on your device, trust me
 
 # External Libraries
 1. Base64 from https://github.com/agdl/Base64
