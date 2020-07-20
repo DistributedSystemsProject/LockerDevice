@@ -21,7 +21,7 @@ void connectBT() {
   reqOp();
   resetCount();
   connected = true;
-  Serial.println("Paring...");
+  Serial.println("Paired");
 }
 
 
@@ -47,14 +47,13 @@ void disconnectBT() {
  *  false = parse or message error
  */
 boolean readBT() {
+  Serial.println("Reading...");
   char input[237];
   (btSerial.readStringUntil('\n')).toCharArray(input, 237);
   int s = strlen(input);
   
   if(s>15 && s<237) {
     delay(100);
-    Serial.println(input);
-    Serial.println(s);
     int block = fromClient(input, s);
     
     if(block > 0) {

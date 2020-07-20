@@ -134,7 +134,6 @@ void reqOp() {
  *  CHECK OP ACCESS KEY
  */
 boolean checkOp(char * otp, int msgSize) {
-  Serial.println("OK");
   StaticJsonDocument<120> doc;
   DeserializationError error = deserializeJson(doc, otp);
   const char * ctr = doc["N1"];
@@ -144,8 +143,10 @@ boolean checkOp(char * otp, int msgSize) {
   ctr = doc["N2"];
   memcpy(N, ctr, 16);
   ctr = doc["OP"];
-  Serial.println(ctr);
   operation = 1;
+
+  Serial.print("Op requested: ");
+  Serial.println(ctr);
 
   return true;
 }
@@ -155,7 +156,6 @@ boolean checkOp(char * otp, int msgSize) {
  *  ANSWER TO OP REQUEST
  */
 void resOp() {
-  Serial.println("RES");
   String message;
   StaticJsonDocument<100> doc;
   doc["RES"] = true;
@@ -163,6 +163,8 @@ void resOp() {
   newNonce();
   doc["N3"] = N;
   serializeJson(doc, message);
+
+  Serial.println("Op response");
 
   toClient(message);
 }
@@ -172,7 +174,6 @@ void resOp() {
  *  DO THE OPERATION
  */
 boolean doOp(char * conf, int msgSize) {
-  Serial.println("OP");
   StaticJsonDocument<40> doc;
   DeserializationError error = deserializeJson(doc, conf);
   const char * ctr = doc["N3"];
@@ -180,7 +181,7 @@ boolean doOp(char * conf, int msgSize) {
   if(error || memcmp(ctr, N, 16) != 0) return false;
 
   operation = 0;
-  Serial.println("DONE!");
+  Serial.println("OP DONE!");
   
   return true;
 }
