@@ -30,7 +30,12 @@ void setup() {
   pinMode(BT_PWR, OUTPUT);
   pinMode(BT_ST, INPUT);
   digitalWrite(BT_PWR, HIGH);
-  randomSeed(analogRead(0));
+  
+  unsigned long seed = analogRead(0);
+  seed += analogRead(0) << 10;
+  seed += analogRead(0) << 20;
+  seed += ((analogRead(0) & 0x3) << 30);
+  randomSeed(seed);
 
   Serial.begin(9600);
   btSerial.begin(4800);
@@ -193,9 +198,3 @@ boolean doOp(char * conf, int msgSize) {
 void newNonce() {
   for(int i = 0; i<8; i++) snprintf(N+(i*2), 3, "%02x", random(256));
 }
-
-
-/*
- *  NOTES:
- *  StaticJsonDocument per messaggi < 1kb
- */
