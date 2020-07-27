@@ -19,7 +19,7 @@ When the operation is successfull, the code prints the string:
 "OP DONE!"
 (You can use this software to authorize any operation (open/lock a locker, turn on/off the light...)
 
-## It is safe to regenerate the key, before to use it
+## It is safe to regenerate the key, before using it
 
 # Other Software
 Mobile App (React Native iOS/Android): https://github.com/DistributedSystemsProject/MobileApp
