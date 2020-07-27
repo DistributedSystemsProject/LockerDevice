@@ -3,6 +3,7 @@ The device is an Arduino Uno, with HC-05 Bluetooth module, to simulate a locker,
 
 # Other Software
 Mobile App (React Native iOS/Android): https://github.com/DistributedSystemsProject/MobileApp
+
 Authorization Server (Lua + Redis DB): https://github.com/DistributedSystemsProject/AuthorizationServer
 
 # Usage
