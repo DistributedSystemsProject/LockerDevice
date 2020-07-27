@@ -1,12 +1,13 @@
 # Locker Device
 The device is an Arduino Uno, with HC-05 Bluetooth module, to simulate a locker, which must be opened or closed if the user is authorized
 
-# Usage
+# Requirements
 Install the external libaries:
 1. Base64 from https://github.com/agdl/Base64
 2. AES-128 Enc/Dec from https://github.com/DavyLandman/AESLib
 3. SHA-256 Hmac from https://github.com/daknuett/cryptosuite2
 
+# Usage
 Connect the Bluetooth module, on these Arduino pins:
 - A2 // PIN bluetooth power
 - A3 // PIN bluetooth state
