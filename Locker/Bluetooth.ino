@@ -37,7 +37,6 @@ void disconnectBT() {
   }
   btSerial.flush();
   connected = false;
-  operation = 0;
 }
 
 
@@ -56,10 +55,7 @@ boolean readBT() {
     delay(100);
     int block = fromClient(input, s);
     
-    if(block > 0) {
-      if(operation == 0) return checkOp(input, block);
-      else return doOp(input, block);
-    }
+    if(block > 0) return checkOp(input, block);
   }
   
   return false;

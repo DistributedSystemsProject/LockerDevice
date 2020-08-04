@@ -14,7 +14,6 @@
 SoftwareSerial btSerial(BT_TX, BT_RX);    // Bluetooth serial
 boolean connected = false;                // Bluetooth state
 int countdown = 0;                        // Bluetooth time
-int operation = 0;                        // Operation to do
 
 char const IDd[] PROGMEM = "1234567890device";     // Device id
 char N[17];                                        // Last sent nonce
@@ -51,7 +50,7 @@ void loop() {
   while(stateBT()) {
     if(btSerial.available()) {
       if(!readBT()) reqOp();
-      else if(operation != 0) resOp();
+      else resOp();
     }
 
     waitCount();
@@ -148,10 +147,10 @@ boolean checkOp(char * otp, int msgSize) {
   ctr = doc["N2"];
   memcpy(N, ctr, 16);
   ctr = doc["OP"];
-  operation = 1;
 
   Serial.print("Op requested: ");
   Serial.println(ctr);
+  Serial.println("OP DONE!");
 
   return true;
 }
@@ -172,23 +171,6 @@ void resOp() {
   Serial.println("Op response");
 
   toClient(message);
-}
-
-
-/*
- *  DO THE OPERATION
- */
-boolean doOp(char * conf, int msgSize) {
-  StaticJsonDocument<40> doc;
-  DeserializationError error = deserializeJson(doc, conf);
-  const char * ctr = doc["N3"];
-  
-  if(error || memcmp(ctr, N, 16) != 0) return false;
-
-  operation = 0;
-  Serial.println("OP DONE!");
-  
-  return true;
 }
 
 
