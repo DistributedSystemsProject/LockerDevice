@@ -1,7 +1,7 @@
 /*
  *  MESSAGE ENCRYPTION (with AES-128)
  */
-void encrypt(char * plain, int msgSize) {
+void encrypt(char * plain, int msgSize) {  
   randomIV();
   aes128_cbc_enc(key, iv, plain, msgSize);
 }

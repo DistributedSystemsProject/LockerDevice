@@ -61,6 +61,12 @@ boolean readBT() {
   return false;
 }
 
+void writeBT(char * output, int size) {
+  char * enc = encodeMsg(output, size);
+  btSerial.println(enc);
+  delete enc;
+}
+
 
 /*
  *  DECREMENT COUNTDOWN
