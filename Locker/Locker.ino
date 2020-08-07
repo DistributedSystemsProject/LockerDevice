@@ -27,7 +27,6 @@ uint8_t pubKeySer[] = { 0xdc, 0x27, 0xa5, 0x67, 0x1d, 0xcb, 0x00, 0x0d, 0xc4, 0x
 uint8_t key[16];
 uint8_t iv[16];
 
-
 /*
  *  RANDOM CURVE
  */
@@ -43,7 +42,7 @@ extern "C" {
         int count = 0;
         while (analogRead(0) == init)
           ++count;
-        
+
         if (count == 0)
            val = (val << 1) | (init & 0x01);
         else
@@ -53,7 +52,7 @@ extern "C" {
       ++dest;
       --size;
     }
-    
+
     return 1;
   }
 }  // extern "C"
@@ -63,7 +62,6 @@ extern "C" {
  *  INIT SETUP
  */
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(BT_PWR, OUTPUT);
   pinMode(BT_ST, INPUT);
   digitalWrite(BT_PWR, HIGH);
@@ -76,8 +74,9 @@ void setup() {
   uECC_set_rng(&RNG);
 
   Serial.begin(9600);
-  btSerial.begin(4800);
-  Serial.println("STARTING");
+  btSerial.begin(9600);
+
+  Serial.println("STARTED");
 }
 
 
@@ -87,10 +86,8 @@ void setup() {
 void loop() {
   while(stateBT()) {
     if(btSerial.available()) {
-      if(!readBT()) reqOp();
-      else resOp();
+      if(readBT()) resOp();
     }
-
     waitCount();
   }
   
@@ -100,18 +97,39 @@ void loop() {
 
 /*
  *  GET MESSAGE FROM CLIENT
+ *  If the message has size of 20, it means that it's not the first time the client requests the operation.
+ *  In other words, it's already paired and it wants to do another operation.
  */
 int fromClient(char * input, int msgSize) {
+  if (msgSize == 20) {
+    uint8_t pubKeyEph[48];
+    uint8_t privKeyEph[24];
+    uECC_make_key(pubKeyEph, privKeyEph, curve);
+    newShared(pubKeySer, privKeyEph);
+  
+    char packet[49];
+    memcpy(packet, pubKeyEph, 48);
+    packet[48] = '\0';
+  
+    char * enc = encodeMsg(packet, sizeof(packet)-1);
+    btSerial.println(enc);
+    Serial.println("Authorization sent");
+    delete enc;
+
+    return 0;
+  }
+  
   int decSize = Base64.decodedLength(input, msgSize);
   char * decoded = decodeMsg(input, msgSize);
-  
   char message[decSize-31];
   uint8_t hmac[32];
+  
   memcpy(message, decoded, decSize-32);
   memcpy(hmac, decoded + (decSize-32), 32);
   message[decSize-32] = '\0';
   delete decoded;
 
+  //IT DOESN'T ENTER IN THIS IF CONDITION
   if(memcmp(hmac, hash(message, (decSize-32)), 32) == 0) {
     int block = cbcLength(decSize-32-16);
     char cipher[block+1];
@@ -120,7 +138,6 @@ int fromClient(char * input, int msgSize) {
     memcpy(cipher, message+16, block);
     cipher[block] = '\0';
     decrypt(cipher, block);
-    
     memcpy(input, cipher, block+1);
     return block;
   }
@@ -132,13 +149,14 @@ int fromClient(char * input, int msgSize) {
 /*
  *  SEND MESSAGE TO CLIENT
  */
-void toClient(String message) {
+char * toClient(String message) {
   int msgSize = message.length();
   int block = cbcLength(msgSize);
   for(int i=0; i<block-msgSize; i++) message += ' ';
-  
+
   char cipher[block+1];
   char full[16+block];
+
   message.toCharArray(cipher, block+1);
   cipher[block] = '\0';
   encrypt(cipher, block);
@@ -149,8 +167,8 @@ void toClient(String message) {
   memcpy(packet, full, 16+block);
   memcpy(packet + (16+block), hash(full, (16+block)), 32);
   packet[16+block+32] = '\0';
-  
-  writeBT(packet, sizeof(packet)-1);
+
+  return encodeMsg(packet, sizeof(packet)-1);
 }
 
 
@@ -162,19 +180,21 @@ void reqOp() {
   uint8_t privKeyEph[24];
   uECC_make_key(pubKeyEph, privKeyEph, curve);
   newShared(pubKeySer, privKeyEph);
-  
+
   char packet[49];
   memcpy(packet, pubKeyEph, 48);
   packet[48] = '\0';
-  
-  writeBT(packet, sizeof(packet)-1);
+
+  char * enc = encodeMsg(packet, sizeof(packet)-1);
+  btSerial.println(enc);
+  delete enc;
 }
 
 
 /*
  *  CHECK OP ACCESS KEY
  */
-boolean checkOp(char * aop, int msgSize) {
+boolean checkOp(char * aop) {  
   StaticJsonDocument<120> doc;
   DeserializationError error = deserializeJson(doc, aop);
   uint8_t pubKeyEph[48];
@@ -184,9 +204,7 @@ boolean checkOp(char * aop, int msgSize) {
 
   if(!newShared(pubKeyEph, privKeyDev)) return false;
 
-  Serial.print("Op requested: ");
-  Serial.println(ctr);
-  Serial.println("OP DONE!");
+  Serial.println("Operation DONE");
 
   return true;
 }
@@ -197,13 +215,14 @@ boolean checkOp(char * aop, int msgSize) {
  */
 void resOp() {
   String message;
-  StaticJsonDocument<100> doc;
+  StaticJsonDocument<50> doc;
   doc["RES"] = true;
   serializeJson(doc, message);
 
-  Serial.println("Op response");
-
-  toClient(message);
+  char * enc = toClient(message);
+  btSerial.println(enc);
+  Serial.println("Response sent");
+  delete enc;
 }
 
 
