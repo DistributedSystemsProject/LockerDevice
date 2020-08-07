@@ -25,7 +25,6 @@ uint8_t iv[16];
  *  INIT SETUP
  */
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(BT_PWR, OUTPUT);
   pinMode(BT_ST, INPUT);
   digitalWrite(BT_PWR, HIGH);
@@ -37,9 +36,9 @@ void setup() {
   randomSeed(seed);
 
   Serial.begin(9600);
-  btSerial.begin(4800);
+  btSerial.begin(9600);
 
-  Serial.println("STARTING");
+  Serial.println("STARTED");
 }
 
 
@@ -49,10 +48,8 @@ void setup() {
 void loop() {
   while(stateBT()) {
     if(btSerial.available()) {
-      if(!readBT()) reqOp();
-      else resOp();
+      if(readBT()) resOp();
     }
-
     waitCount();
   }
   
@@ -62,8 +59,26 @@ void loop() {
 
 /*
  *  GET MESSAGE FROM CLIENT
+ *  If the message has size of 20, it means that it's not the first time the client requests the operation.
+ *  In other words, it's already paired and it wants to do another operation.
  */
 int fromClient(char * input, int msgSize) {
+  if (msgSize == 20) {
+    String message;
+    newNonce();
+    StaticJsonDocument<60> doc;
+    doc["IDd"] = FC(IDd);
+    doc["N1"] = N;
+    serializeJson(doc, message);
+
+    char * enc = toClient(message);
+    btSerial.println(enc);
+    Serial.println("Authorization sent");
+    delete enc;
+
+    return 0;
+  }
+  
   int decSize = Base64.decodedLength(input, msgSize);
   char * decoded = decodeMsg(input, msgSize);
   char message[decSize-31];
@@ -94,14 +109,14 @@ int fromClient(char * input, int msgSize) {
 /*
  *  SEND MESSAGE TO CLIENT
  */
-void toClient(String message) {
+char * toClient(String message) {
   int msgSize = message.length();
   int block = cbcLength(msgSize);
   for(int i=0; i<block-msgSize; i++) message += ' ';
-  
+
   char cipher[block+1];
   char full[16+block];
-  
+
   message.toCharArray(cipher, block+1);
   cipher[block] = '\0';
   encrypt(cipher, block);
@@ -112,10 +127,8 @@ void toClient(String message) {
   memcpy(packet, full, 16+block);
   memcpy(packet + (16+block), hash(full, (16+block)), 32);
   packet[16+block+32] = '\0';
-  
-  char * enc = encodeMsg(packet, sizeof(packet)-1);
-  btSerial.println(enc);
-  delete enc;
+
+  return encodeMsg(packet, sizeof(packet)-1);
 }
 
 
@@ -129,15 +142,17 @@ void reqOp() {
   doc["IDd"] = FC(IDd);
   doc["N1"] = N;
   serializeJson(doc, message);
-
-  toClient(message);
+  
+  char * enc = toClient(message);
+  btSerial.println(enc);
+  delete enc;
 }
 
 
 /*
  *  CHECK OP ACCESS KEY
  */
-boolean checkOp(char * otp, int msgSize) {
+boolean checkOp(char * otp, int msgSize) {  
   StaticJsonDocument<120> doc;
   DeserializationError error = deserializeJson(doc, otp);
   const char * ctr = doc["N1"];
@@ -148,9 +163,7 @@ boolean checkOp(char * otp, int msgSize) {
   memcpy(N, ctr, 16);
   ctr = doc["OP"];
 
-  Serial.print("Op requested: ");
-  Serial.println(ctr);
-  Serial.println("OP DONE!");
+  Serial.println("Operation DONE");
 
   return true;
 }
@@ -168,9 +181,10 @@ void resOp() {
   doc["N3"] = N;
   serializeJson(doc, message);
 
-  Serial.println("Op response");
-
-  toClient(message);
+  char * enc = toClient(message);
+  btSerial.println(enc);
+  Serial.println("Response sent");
+  delete enc;
 }
 
 
