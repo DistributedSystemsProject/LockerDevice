@@ -85,15 +85,15 @@ void loop() {
   while(stateBT()) {
     if(btSerial.available()) {
       if(readBT()) {
-        String message;
-        StaticJsonDocument<50> doc;
+        /*String message;
+        StaticJsonDocument<200> doc;
         doc["RES"] = true;
         serializeJson(doc, message);
       
         char * enc = toClient(message);
-        btSerial.println(enc);
+        btSerial.println(enc);*/
         Serial.println("Response sent");
-        delete enc;
+        //delete enc;
       }
     }
     waitCount();
@@ -128,30 +128,19 @@ int fromClient(char * input, int msgSize) {
   }
   
   int decSize = Base64.decodedLength(input, msgSize);
-  char * decoded = decodeMsg(input, msgSize);
-  char message[decSize-31];
-  uint8_t hmac[32];
-  
-  memcpy(message, decoded, decSize-32);
-  memcpy(hmac, decoded + (decSize-32), 32);
-  message[decSize-32] = '\0';
-  delete decoded;
-
-  if(memcmp(hmac, hash(message, (decSize-32)), 32) == 0) {
-    int block = cbcLength(decSize-32-16);
-    char cipher[block+1];
-    
-    memcpy(iv, message, 16);
-    memcpy(cipher, message+16, block);
-    cipher[block] = '\0';
-    decrypt(cipher, block);
-    memcpy(input, cipher, block+1);
+  char* decoded = decodeMsg(input, msgSize);
+  if(memcmp(decoded + (decSize-32), hash(decoded, decSize-32), 32) == 0) {
+    int block = decSize-32-16;
+    memcpy(iv, decoded, 16);
+    decrypt(decoded+16, block);
+    memcpy(input, decoded+16, block);
+    input[block] = '\0';
+    delete decoded;
     return block;
   }
-
+  delete decoded;
   return 0;
 }
-
 
 /*
  *  SEND MESSAGE TO CLIENT
