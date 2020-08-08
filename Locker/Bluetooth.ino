@@ -60,7 +60,10 @@ boolean readBT() {
       DeserializationError error = deserializeJson(doc, input);
       uint8_t pubKeyEph[48];
       const char * ctr = doc["PK"];
-      memcpy(pubKeyEph, decodeMsg((char *)ctr, 64), 48);
+
+      char* dec = decodeMsg((char *)ctr, 64);
+      memcpy(pubKeyEph, dec, 48);
+      delete dec;
       ctr = doc["OP"];
     
       if(!newShared(pubKeyEph, privKeyDev)) return false;

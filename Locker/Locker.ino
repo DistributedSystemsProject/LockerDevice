@@ -19,11 +19,11 @@ char const IDd[] PROGMEM = "1234567890device";     // Device id
 
 const struct uECC_Curve_t * curve = uECC_secp192r1();
 uint8_t privKeyDev[] = { 0x02, 0xf2, 0x82, 0x21, 0xfb, 0x3a, 0x22, 0xa4, 0x48, 0x92, 0x8c, 0x44, 
-                         0x99, 0x61, 0x20, 0xfb, 0xf7, 0xbe, 0x2d, 0xa3, 0xf6, 0xcd, 0xc2, 0xe2 };
+                                     0x99, 0x61, 0x20, 0xfb, 0xf7, 0xbe, 0x2d, 0xa3, 0xf6, 0xcd, 0xc2, 0xe2 };
 uint8_t pubKeySer[] = { 0xdc, 0x27, 0xa5, 0x67, 0x1d, 0xcb, 0x00, 0x0d, 0xc4, 0x1b, 0x99, 0x96, 
-                        0x84, 0x0b, 0xb3, 0xc0, 0x08, 0xe2, 0x91, 0x08, 0xd1, 0x59, 0x49, 0x40, 
-                        0x1f, 0x05, 0x7a, 0x28, 0xe0, 0x46, 0x81, 0x7e, 0xfa, 0xcc, 0x67, 0x90, 
-                        0xf0, 0x5d, 0xef, 0xfd, 0x13, 0x78, 0xf5, 0xaf, 0x2d, 0xd8, 0xa9, 0x21 };
+                                    0x84, 0x0b, 0xb3, 0xc0, 0x08, 0xe2, 0x91, 0x08, 0xd1, 0x59, 0x49, 0x40, 
+                                    0x1f, 0x05, 0x7a, 0x28, 0xe0, 0x46, 0x81, 0x7e, 0xfa, 0xcc, 0x67, 0x90, 
+                                    0xf0, 0x5d, 0xef, 0xfd, 0x13, 0x78, 0xf5, 0xaf, 0x2d, 0xd8, 0xa9, 0x21 };
 uint8_t key[16];
 uint8_t iv[16];
 
@@ -85,15 +85,10 @@ void loop() {
   while(stateBT()) {
     if(btSerial.available()) {
       if(readBT()) {
-        /*String message;
-        StaticJsonDocument<200> doc;
-        doc["RES"] = true;
-        serializeJson(doc, message);
-      
-        char * enc = toClient(message);
-        btSerial.println(enc);*/
+        char * enc = toClient("{\"RES\": true}   ");
+        //btSerial.println(enc);
         Serial.println("Response sent");
-        //delete enc;
+        delete enc;
       }
     }
     waitCount();
@@ -145,28 +140,15 @@ int fromClient(char * input, int msgSize) {
 /*
  *  SEND MESSAGE TO CLIENT
  */
-char * toClient(String message) {
-  int msgSize = message.length();
-  int block = cbcLength(msgSize);
-  for(int i=0; i<block-msgSize; i++) message += ' ';
-
-  char cipher[block+1];
-  char full[16+block];
-
-  message.toCharArray(cipher, block+1);
-  cipher[block] = '\0';
-  encrypt(cipher, block);
-  memcpy(full, iv, 16);
-  memcpy(full + 16, cipher, 16+block);
-
-  char packet[16+block+33];
-  memcpy(packet, full, 16+block);
-  memcpy(packet + (16+block), hash(full, (16+block)), 32);
-  packet[16+block+32] = '\0';
-
-  return encodeMsg(packet, sizeof(packet)-1);
+char * toClient(char * message) {
+    /*char out[64];
+    memcpy(out, iv, 16);
+    memcpy(out+16, message, 16);
+    encrypt(out+16, 16);
+    memcpy(out+32, hash(out, 32), 32);
+    return encodeMsg(out, 64);*/
+    return "ciao";
 }
-
 
 /*
  *  SEND REQUEST MESSAGE
@@ -185,7 +167,6 @@ void reqOp() {
   btSerial.println(enc);
   delete enc;
 }
-
 
 /*
  *  GENERATE SHARED KEY

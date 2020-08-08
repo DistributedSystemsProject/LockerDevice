@@ -25,15 +25,6 @@ void randomIV() {
 
 
 /*
- *  CBC ENCRYPTION BLOCK SIZE
- */
-int cbcLength(int len) {
-  if(len % 16 == 0) return len;
-  return (16 - (len % 16) + len);
-}
-
-
-/*
  *  MESSAGE HASHING (with SHA-256)
  */
 uint8_t * hash(char * message, int msgSize) {
