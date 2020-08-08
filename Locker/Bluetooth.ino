@@ -55,8 +55,20 @@ boolean readBT() {
     Serial.println("Reading...");
     delay(100);
     int block = fromClient(input, s);
+    if (block > 0) {
+      StaticJsonDocument<120> doc;
+      DeserializationError error = deserializeJson(doc, input);
+      uint8_t pubKeyEph[48];
+      const char * ctr = doc["PK"];
+      memcpy(pubKeyEph, decodeMsg((char *)ctr, 64), 48);
+      ctr = doc["OP"];
     
-    if(block > 0) return checkOp(input, block);
+      if(!newShared(pubKeyEph, privKeyDev)) return false;
+    
+      Serial.println("Operation DONE");
+    
+      return true;
+    }
   }
   
   return false;
