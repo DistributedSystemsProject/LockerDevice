@@ -17,7 +17,6 @@ boolean stateBT() {
  *  CONNECTION TO CLIENT
  */
 void connectBT() {
-  Serial.println("Pairing...");
   btSerial.println(FC(IDd));
   reqOp();
   resetCount();
@@ -51,14 +50,21 @@ boolean readBT() {
   (btSerial.readStringUntil('\n')).toCharArray(input, 200);
   int s = strlen(input);
   
-  if(s>15 && s<200) {
+  if(s>15 && s<201) {
     Serial.println("Reading...");
     delay(100);
     int block = fromClient(input, s);
-    //if(block > 0) return checkOp(input);
+    
+    if(block > 0) return checkOp(input, block);
   }
   
   return false;
+}
+
+void writeBT(char output[], int size) {
+  char * enc = encodeMsg(output, size);
+  btSerial.println(enc);
+  delete enc;
 }
 
 
