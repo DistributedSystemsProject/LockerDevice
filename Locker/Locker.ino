@@ -4,7 +4,6 @@
 #include <EEPROM.h>
 #include <sha256.h>
 #include <SoftwareSerial.h>
-#include <uECC.h>
 
 #define  FC(string_constant) (reinterpret_cast<const __FlashStringHelper *>(string_constant))
 #define  BT_PWR A2           // PIN bluetooth power
@@ -15,45 +14,11 @@
 SoftwareSerial btSerial(BT_TX, BT_RX);    // Bluetooth serial
 boolean connected = false;                // Bluetooth state
 int countdown = 0;                        // Bluetooth time
+
 char const IDd[] PROGMEM = "1234567890device";     // Device id
-
-const struct uECC_Curve_t * curve = uECC_secp192r1();
-uint8_t privKeyDev[] = { 0x02, 0xf2, 0x82, 0x21, 0xfb, 0x3a, 0x22, 0xa4, 0x48, 0x92, 0x8c, 0x44, 
-                         0x99, 0x61, 0x20, 0xfb, 0xf7, 0xbe, 0x2d, 0xa3, 0xf6, 0xcd, 0xc2, 0xe2 };
-uint8_t pubKeySer[] = { 0xdc, 0x27, 0xa5, 0x67, 0x1d, 0xcb, 0x00, 0x0d, 0xc4, 0x1b, 0x99, 0x96, 
-                        0x84, 0x0b, 0xb3, 0xc0, 0x08, 0xe2, 0x91, 0x08, 0xd1, 0x59, 0x49, 0x40, 
-                        0x1f, 0x05, 0x7a, 0x28, 0xe0, 0x46, 0x81, 0x7e, 0xfa, 0xcc, 0x67, 0x90, 
-                        0xf0, 0x5d, 0xef, 0xfd, 0x13, 0x78, 0xf5, 0xaf, 0x2d, 0xd8, 0xa9, 0x21 };
-uint8_t key[16];
+char N[17];                                        // Last sent nonce
+uint8_t key[] = {0x0c, 0xc0, 0x52, 0xf6, 0x7b, 0xbd, 0x05, 0x0e, 0x75, 0xac, 0x0d, 0x43, 0xf1, 0x0a, 0x8f, 0x35};
 uint8_t iv[16];
-
-/*
- *  RANDOM CURVE
- */
-static int RNG(uint8_t *dest, unsigned size) {
-  // Use the least-significant bits from the ADC for an unconnected pin (or connected to a source of 
-  // random noise). This can take a long time to generate random data if the result of analogRead(0) 
-  // doesn't change very frequently.
-  while (size) {
-    uint8_t val = 0;
-    for (unsigned i = 0; i < 8; ++i) {
-      int init = analogRead(0);
-      int count = 0;
-      while (analogRead(0) == init)
-        ++count;
-
-      if (count == 0)
-         val = (val << 1) | (init & 0x01);
-      else
-         val = (val << 1) | (count & 0x01);
-    }
-    *dest = val;
-    ++dest;
-    --size;
-  }
-
-  return 1;
-}
 
 
 /*
@@ -69,7 +34,6 @@ void setup() {
   seed += analogRead(0) << 20;
   seed += ((analogRead(0) & 0x3) << 30);
   randomSeed(seed);
-  uECC_set_rng(&RNG);
 
   Serial.begin(9600);
   btSerial.begin(9600);
@@ -84,17 +48,7 @@ void setup() {
 void loop() {
   while(stateBT()) {
     if(btSerial.available()) {
-      if(readBT()) {
-        String message;
-        StaticJsonDocument<50> doc;
-        doc["RES"] = true;
-        serializeJson(doc, message);
-      
-        char * enc = toClient(message);
-        btSerial.println(enc);
-        Serial.println("Response sent");
-        delete enc;
-      }
+      if(readBT()) resOp();
     }
     waitCount();
   }
@@ -110,16 +64,14 @@ void loop() {
  */
 int fromClient(char * input, int msgSize) {
   if (msgSize == 20) {
-    uint8_t pubKeyEph[48];
-    uint8_t privKeyEph[24];
-    uECC_make_key(pubKeyEph, privKeyEph, curve);
-    newShared(pubKeySer, privKeyEph);
-  
-    char packet[49];
-    memcpy(packet, pubKeyEph, 48);
-    packet[48] = '\0';
-  
-    char * enc = encodeMsg(packet, sizeof(packet)-1);
+    String message;
+    newNonce();
+    StaticJsonDocument<60> doc;
+    doc["IDd"] = FC(IDd);
+    doc["N1"] = N;
+    serializeJson(doc, message);
+
+    char * enc = toClient(message);
     btSerial.println(enc);
     Serial.println("Authorization sent");
     delete enc;
@@ -145,6 +97,7 @@ int fromClient(char * input, int msgSize) {
     memcpy(cipher, message+16, block);
     cipher[block] = '\0';
     decrypt(cipher, block);
+    
     memcpy(input, cipher, block+1);
     return block;
   }
@@ -167,8 +120,8 @@ char * toClient(String message) {
   message.toCharArray(cipher, block+1);
   cipher[block] = '\0';
   encrypt(cipher, block);
-  memcpy(full, iv, 16);
-  memcpy(full + 16, cipher, 16+block);
+  for(int i=0; i<16; i++) full[i] = iv[i];
+  for(int i=16; i<16+block; i++) full[i] = cipher[i-16];
 
   char packet[16+block+33];
   memcpy(packet, full, 16+block);
@@ -183,31 +136,61 @@ char * toClient(String message) {
  *  SEND REQUEST MESSAGE
  */
 void reqOp() {
-  uint8_t pubKeyEph[48];
-  uint8_t privKeyEph[24];
-  uECC_make_key(pubKeyEph, privKeyEph, curve);
-  newShared(pubKeySer, privKeyEph);
-
-  char packet[49];
-  memcpy(packet, pubKeyEph, 48);
-  packet[48] = '\0';
-
-  char * enc = encodeMsg(packet, sizeof(packet)-1);
+  String message;
+  newNonce();
+  StaticJsonDocument<60> doc;
+  doc["IDd"] = FC(IDd);
+  doc["N1"] = N;
+  serializeJson(doc, message);
+  
+  char * enc = toClient(message);
   btSerial.println(enc);
   delete enc;
 }
 
 
 /*
- *  GENERATE SHARED KEY
+ *  CHECK OP ACCESS KEY
  */
-boolean newShared(uint8_t * pub, uint8_t * priv) {
-  uint8_t shared[24];
-  if(!uECC_shared_secret(pub, priv, shared, curve)) return false;
+boolean checkOp(char * otp, int msgSize) {  
+  StaticJsonDocument<120> doc;
+  DeserializationError error = deserializeJson(doc, otp);
+  const char * ctr = doc["N1"];
+  
+  if(error || memcmp(ctr, N, 16) != 0) return false;
+  
+  ctr = doc["N2"];
+  memcpy(N, ctr, 16);
+  ctr = doc["OP"];
 
-  Sha256.init();
-  Sha256.write(shared, 24);
-  memcpy(key, Sha256.result(), 16);
+  Serial.println("Operation DONE");
 
   return true;
+}
+
+
+/*
+ *  ANSWER TO OP REQUEST
+ */
+void resOp() {
+  String message;
+  StaticJsonDocument<100> doc;
+  doc["RES"] = true;
+  doc["N2"] = N;
+  newNonce();
+  doc["N3"] = N;
+  serializeJson(doc, message);
+
+  char * enc = toClient(message);
+  btSerial.println(enc);
+  Serial.println("Response sent");
+  delete enc;
+}
+
+
+/*
+ *  RANDOM NONCE GENERATION
+ */
+void newNonce() {
+  for(int i = 0; i<8; i++) snprintf(N+(i*2), 3, "%02x", random(256));
 }
