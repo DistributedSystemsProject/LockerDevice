@@ -1,7 +1,7 @@
 /*
  *  MESSAGE ENCRYPTION (with AES-128)
  */
-void encrypt(char * plain, int msgSize) {
+void encrypt(char * plain, int msgSize) {  
   randomIV();
   aes128_cbc_enc(key, iv, plain, msgSize);
 }
@@ -21,6 +21,15 @@ void decrypt(char * cipher, int msgSize) {
  */
 void randomIV() {
   for(int i=0; i<16; i++) iv[i] = random(256);
+}
+
+
+/*
+ *  CBC ENCRYPTION BLOCK SIZE
+ */
+int cbcLength(int len) {
+  if(len % 16 == 0) return len;
+  return (16 - (len % 16) + len);
 }
 
 

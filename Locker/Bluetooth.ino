@@ -22,7 +22,7 @@ void connectBT() {
   reqOp();
   resetCount();
   connected = true;
-  Serial.println("Paired");
+  Serial.println("Paired!");
 }
 
 
@@ -55,26 +55,17 @@ boolean readBT() {
     Serial.println("Reading...");
     delay(100);
     int block = fromClient(input, s);
-    if (block > 0) {
-      StaticJsonDocument<120> doc;
-      DeserializationError error = deserializeJson(doc, input);
-      uint8_t pubKeyEph[48];
-      const char * ctr = doc["PK"];
-
-      char* dec = decodeMsg((char *)ctr, 64);
-      memcpy(pubKeyEph, dec, 48);
-      delete dec;
-      ctr = doc["OP"];
     
-      if(!newShared(pubKeyEph, privKeyDev)) return false;
-    
-      Serial.println("Operation DONE");
-    
-      return true;
-    }
+    if(block > 0) return checkOp(input, block);
   }
   
   return false;
+}
+
+void writeBT(char * output, int size) {
+  char * enc = encodeMsg(output, size);
+  btSerial.println(enc);
+  delete enc;
 }
 
 
