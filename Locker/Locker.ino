@@ -84,12 +84,7 @@ void setup() {
 void loop() {
   while(stateBT()) {
     if(btSerial.available()) {
-      if(readBT()) {
-        char * enc = toClient("{\"RES\": true}   ");
-        //btSerial.println(enc);
-        Serial.println("Response sent");
-        delete enc;
-      }
+      if(readBT()) resOp();
     }
     waitCount();
   }
@@ -141,10 +136,10 @@ int fromClient(char * input, int msgSize) {
  *  SEND MESSAGE TO CLIENT
  */
 char * toClient(char * message) {
-    /*char out[64];
+    char out[64];
     memcpy(out, iv, 16);
     memcpy(out+16, message, 16);
-    encrypt(out+16, 16);
+    /*encrypt(out+16, 16);
     memcpy(out+32, hash(out, 32), 32);
     return encodeMsg(out, 64);*/
     return "ciao";
@@ -167,6 +162,17 @@ void reqOp() {
   btSerial.println(enc);
   delete enc;
 }
+
+/*
+ *  ANSWER TO OP REQUEST
+ */
+void resOp() {
+  char * enc = toClient("{\"RES\": true}   ");
+  //btSerial.println(enc);
+  Serial.println("Response sent");
+  delete enc;
+}
+
 
 /*
  *  GENERATE SHARED KEY
