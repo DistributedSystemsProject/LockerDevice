@@ -31,5 +31,5 @@ Mobile App (React Native iOS/Android): https://github.com/DistributedSystemsProj
 Authorization Server (Lua + Redis DB): https://github.com/DistributedSystemsProject/AuthorizationServer
 
 # Known Issues
-The code works only with Arduino AVR Boards 1.6.21. If you update to a newer version, the program can't start.
+The code works only with Arduino AVR Boards 1.6.21. If you update to a newer version, the program can't start (only tested with Arduino IDE on Windows 10).
 
