@@ -23,7 +23,7 @@ Connect the Bluetooth module, on these Arduino pins:
 Run the code on your device.
 
 When the operation is successful, the code prints on the Serial Monitor, the following string:
-"Operation DONE"
+"Operation DONE!"
 
 # Other Software
 Mobile App (React Native iOS/Android): https://github.com/DistributedSystemsProject/MobileApp
