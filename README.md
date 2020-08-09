@@ -28,3 +28,6 @@ When the operation is successful, the code prints on the Serial Monitor, the fol
 Mobile App (React Native iOS/Android): https://github.com/DistributedSystemsProject/MobileApp
 
 Authorization Server (Lua + Redis DB): https://github.com/DistributedSystemsProject/AuthorizationServer
+
+# Known Issues
+The code works only with Arduino AVR Boards 1.6.21. If you update to a newer version, the program can't start.
