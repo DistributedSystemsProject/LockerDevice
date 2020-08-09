@@ -84,18 +84,10 @@ void setup() {
 void loop() {
   while(stateBT()) {
     if(btSerial.available()) {
-      char input[200];
-      int msgSize = readBT(input, 200);
-      Serial.println("Reading...");
-      delay(100);
-      
-      if(msgSize==20) reqOp();
-      else if(msgSize>15 && msgSize<200) {
-        int block = fromClient(input, msgSize);
-        if(block > 0 && checkOp(input, block)) resOp();
-      }
+      if(readBT()) resOp();
     }
-    waitCount();
+
+    //waitCount();
   }
   
   delay(100);
@@ -106,6 +98,24 @@ void loop() {
  *  GET MESSAGE FROM CLIENT
  */
 int fromClient(char * input, int msgSize) {
+  if (msgSize == 20) {
+    uint8_t pubKeyEph[48];
+    uint8_t privKeyEph[24];
+    uECC_make_key(pubKeyEph, privKeyEph, curve);
+    newShared(pubKeySer, privKeyEph);
+  
+    char packet[49];
+    memcpy(packet, pubKeyEph, 48);
+    packet[48] = '\0';
+  
+    char * enc = encodeMsg(packet, sizeof(packet)-1);
+    btSerial.println(enc);
+    Serial.println("Authorization sent");
+    delete enc;
+
+    return 0;
+  }
+  
   int decSize = Base64.decodedLength(input, msgSize);
   char * decoded = decodeMsg(input, msgSize);
   int block = 0;
