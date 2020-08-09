@@ -46,22 +46,15 @@ void disconnectBT() {
  *  true = successfull read
  *  false = parse or message error
  */
-boolean readBT() {
-  char input[200];
-  (btSerial.readStringUntil('\n')).toCharArray(input, 200);
-  int s = strlen(input);
-  
-  if(s>15 && s<201) {
-    Serial.println("Reading...");
-    delay(100);
-    int block = fromClient(input, s);
-    
-    if(block > 0) return checkOp(input, block);
-  }
-  
-  return false;
+int readBT(char * input, int size) {
+  (btSerial.readStringUntil('\n')).toCharArray(input, size);
+  return strlen(input);
 }
 
+
+/*
+ *  WRITE TO BLUETOOTH
+ */
 void writeBT(char * output, int size) {
   char * enc = encodeMsg(output, size);
   btSerial.println(enc);
