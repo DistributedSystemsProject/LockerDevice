@@ -31,32 +31,30 @@ uint8_t iv[16];
 /*
  *  RANDOM CURVE
  */
-extern "C" {
-  static int RNG(uint8_t *dest, unsigned size) {
-    // Use the least-significant bits from the ADC for an unconnected pin (or connected to a source of 
-    // random noise). This can take a long time to generate random data if the result of analogRead(0) 
-    // doesn't change very frequently.
-    while (size) {
-      uint8_t val = 0;
-      for(unsigned i = 0; i < 8; ++i) {
-        int init = analogRead(0);
-        int count = 0;
-        while(analogRead(0) == init)
-          ++count;
-        
-        if(count == 0)
-           val = (val << 1) | (init & 0x01);
-        else
-           val = (val << 1) | (count & 0x01);
-      }
-      *dest = val;
-      ++dest;
-      --size;
+static int RNG(uint8_t *dest, unsigned size) {
+  // Use the least-significant bits from the ADC for an unconnected pin (or connected to a source of 
+  // random noise). This can take a long time to generate random data if the result of analogRead(0) 
+  // doesn't change very frequently.
+  while (size) {
+    uint8_t val = 0;
+    for(unsigned i = 0; i < 8; ++i) {
+      int init = analogRead(0);
+      int count = 0;
+      while(analogRead(0) == init)
+        ++count;
+      
+      if(count == 0)
+         val = (val << 1) | (init & 0x01);
+      else
+         val = (val << 1) | (count & 0x01);
     }
-    
-    return 1;
+    *dest = val;
+    ++dest;
+    --size;
   }
-}  // extern "C"
+  
+  return 1;
+}
 
 
 /*
@@ -75,7 +73,7 @@ void setup() {
   uECC_set_rng(&RNG);
 
   Serial.begin(9600);
-  btSerial.begin(4800);         // Set correct bt module's baud rate
+  btSerial.begin(9600);
   Serial.println("STARTED");
 }
 
